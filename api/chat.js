@@ -67,6 +67,8 @@ export default async function handler(req, res) {
       mode = 'chat',
       model = 'gemini-2.5-flash',
     } = req.body || {};
+    const autoImageIntent = /(buat|generate|bikin).*(gambar|image|foto|ilustrasi)/i.test(prompt || '');
+    const effectiveMode = mode === 'chat' && autoImageIntent ? 'image_generate' : mode;
 
     const imageParts = images.map((img) => toInlineData(img));
     const contents = [...buildHistoryParts(history)];
@@ -77,13 +79,13 @@ export default async function handler(req, res) {
     let modelToUse = model;
     let body = {};
 
-    if (mode === 'image_generate') {
+    if (effectiveMode === 'image_generate') {
       modelToUse = 'gemini-2.0-flash-preview-image-generation';
       body = {
         contents: [{ role: 'user', parts: [{ text: `Generate a high-quality image based on this prompt: ${prompt}` }] }],
         generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
       };
-    } else if (mode === 'image_edit') {
+    } else if (effectiveMode === 'image_edit') {
       modelToUse = 'gemini-2.0-flash-preview-image-generation';
       body = {
         contents: [{ role: 'user', parts: [{ text: `Edit this image with instruction: ${prompt}` }, ...imageParts] }],

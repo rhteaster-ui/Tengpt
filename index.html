@@ -43,7 +43,9 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
+      transition: transform .2s ease;
     }
+    .sidebar.mobile-open { transform: translateX(0); }
 
     .sidebar-head {
       padding: 14px;
@@ -120,6 +122,7 @@
 
     .brand { font-size: 15px; font-weight: 700; }
     .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .mobile-menu { display: none; }
 
     select, .toggle {
       border: 1px solid var(--border);
@@ -183,6 +186,20 @@
       border: 1px solid var(--border);
       margin-top: 10px;
     }
+    .msg-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .msg-actions button {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 8px;
+      height: 30px;
+      padding: 0 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
 
     .code {
       margin-top: 12px;
@@ -208,6 +225,12 @@
       font-size: 13px;
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     }
+    .bubble p { margin: 0 0 10px; }
+    .bubble h1, .bubble h2, .bubble h3, .bubble h4 { margin: 0 0 10px; line-height: 1.25; }
+    .bubble ul { margin: 0 0 10px 18px; padding: 0; }
+    .bubble li { margin: 0 0 4px; }
+    .bubble code { background: rgba(148,163,184,.2); padding: 1px 5px; border-radius: 6px; }
+    .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
     .typing {
       display: inline-flex;
@@ -295,7 +318,16 @@
 
     @media (max-width: 900px) {
       .layout { grid-template-columns: 1fr; }
-      .sidebar { display: none; }
+      .sidebar {
+        display: flex;
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(82vw, 320px);
+        z-index: 60;
+        transform: translateX(-110%);
+        box-shadow: var(--shadow);
+      }
+      .mobile-menu { display: inline-flex; }
       .chat-wrap { padding: 14px; }
       .composer { padding: 10px; }
       .bubble { max-width: 96%; }
@@ -315,6 +347,7 @@
       <div class="topbar">
         <div class="brand">Tengpt • Gemini UI (ChatGPT style)</div>
         <div class="controls">
+          <button class="btn mobile-menu" id="mobileMenuBtn">☰</button>
           <select id="modelSelect">
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>
             <option value="gemini-2.5-pro">gemini-2.5-pro</option>
@@ -355,6 +388,7 @@
     const el = {
       chat: document.getElementById('chat'),
       chatList: document.getElementById('chatList'),
+      mobileMenuBtn: document.getElementById('mobileMenuBtn'),
       newChatBtn: document.getElementById('newChatBtn'),
       fileInput: document.getElementById('fileInput'),
       preview: document.getElementById('preview'),
@@ -385,6 +419,7 @@
       const chat = { id: uid(), title: 'New Chat', updatedAt: Date.now(), messages: [] };
       state.chats.unshift(chat);
       state.currentChatId = chat.id;
+      document.querySelector('.sidebar').classList.remove('mobile-open');
       save();
       render();
     }
@@ -400,7 +435,39 @@
     function renderMarkdownLite(text = '') {
       const sections = text.split('```');
       return sections.map((section, i) => {
-        if (i % 2 === 0) return `<div>${escapeHtml(section).replace(/\n/g, '<br/>')}</div>`;
+        if (i % 2 === 0) {
+          const lines = section.split('\n');
+          let html = '';
+          let inList = false;
+          for (let line of lines) {
+            const raw = escapeHtml(line);
+            if (/^\s*---+\s*$/.test(line)) {
+              if (inList) { html += '</ul>'; inList = false; }
+              html += '<hr/>';
+              continue;
+            }
+            const hMatch = raw.match(/^(#{1,6})\s+(.*)$/);
+            if (hMatch) {
+              if (inList) { html += '</ul>'; inList = false; }
+              const level = hMatch[1].length;
+              html += `<h${level}>${hMatch[2]}</h${level}>`;
+              continue;
+            }
+            const li = raw.match(/^\s*[-*]\s+(.*)$/);
+            if (li) {
+              if (!inList) { html += '<ul>'; inList = true; }
+              html += `<li>${li[1]}</li>`;
+              continue;
+            }
+            if (inList) { html += '</ul>'; inList = false; }
+            const withBold = raw
+              .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+              .replace(/`([^`]+)`/g, '<code>$1</code>');
+            html += withBold ? `<p>${withBold}</p>` : '<br/>';
+          }
+          if (inList) html += '</ul>';
+          return `<div>${html}</div>`;
+        }
         const lines = section.split('\n');
         const lang = escapeHtml(lines.shift() || 'code');
         const code = escapeHtml(lines.join('\n'));
@@ -419,6 +486,7 @@
       el.chatList.querySelectorAll('.chat-item').forEach(btn => {
         btn.addEventListener('click', () => {
           state.currentChatId = btn.dataset.chatId;
+          document.querySelector('.sidebar').classList.remove('mobile-open');
           save();
           render();
         });
@@ -459,10 +527,28 @@
         }
 
         const imgs = (msg.images || []).map(src => `<img src="${src}" alt="generated"/>`).join('');
-        return `<div class="msg"><div class="bubble">${renderMarkdownLite(msg.text || '')}${imgs}</div></div>`;
+        return `<div class="msg"><div class="bubble">${renderMarkdownLite(msg.text || '')}${imgs}<div class="msg-actions"><button data-copy="${msg.createdAt}">Copy</button><button data-regen="${msg.createdAt}">Regenerate</button></div></div></div>`;
       }).join('');
 
       el.chat.parentElement.scrollTop = el.chat.parentElement.scrollHeight;
+      el.chat.querySelectorAll('[data-copy]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const t = btn.closest('.bubble')?.innerText?.replace('CopyRegenerate', '') || '';
+          await navigator.clipboard.writeText(t.trim());
+          btn.textContent = 'Copied';
+          setTimeout(() => (btn.textContent = 'Copy'), 1100);
+        });
+      });
+      el.chat.querySelectorAll('[data-regen]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const current = getCurrentChat();
+          if (!current) return;
+          const lastUser = [...current.messages].reverse().find((m) => m.role === 'user');
+          if (!lastUser) return;
+          el.prompt.value = lastUser.text || '';
+          sendMessage();
+        });
+      });
     }
 
     function render() {
@@ -485,9 +571,17 @@
       const text = el.prompt.value.trim();
       const hasImages = state.pendingImages.length > 0;
       if (!text && !hasImages) return;
-
       const current = getCurrentChat();
       if (!current) return;
+      if (el.imageEditToggle.checked && !hasImages) {
+        current.messages.push({
+          role: 'assistant',
+          text: 'Untuk mode Image Edit, upload dulu minimal 1 gambar.',
+          createdAt: Date.now()
+        });
+        render();
+        return;
+      }
 
       const userMsg = {
         role: 'user',
@@ -554,6 +648,15 @@
     }
 
     el.newChatBtn.addEventListener('click', newChat);
+    el.mobileMenuBtn.addEventListener('click', () => {
+      document.querySelector('.sidebar').classList.toggle('mobile-open');
+    });
+    el.imageGenToggle.addEventListener('change', () => {
+      if (el.imageGenToggle.checked) el.imageEditToggle.checked = false;
+    });
+    el.imageEditToggle.addEventListener('change', () => {
+      if (el.imageEditToggle.checked) el.imageGenToggle.checked = false;
+    });
     el.sendBtn.addEventListener('click', sendMessage);
     el.prompt.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
