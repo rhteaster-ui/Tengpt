@@ -228,7 +228,16 @@
     .bubble p { margin: 0 0 10px; }
     .bubble h1, .bubble h2, .bubble h3, .bubble h4 { margin: 0 0 10px; line-height: 1.25; }
     .bubble ul { margin: 0 0 10px 18px; padding: 0; }
+    .bubble ol { margin: 0 0 10px 18px; padding: 0; }
     .bubble li { margin: 0 0 4px; }
+    .bubble blockquote {
+      margin: 0 0 10px;
+      padding: 8px 12px;
+      border-left: 3px solid var(--border);
+      color: var(--subtext);
+      background: var(--surface-2);
+      border-radius: 8px;
+    }
     .bubble code { background: rgba(148,163,184,.2); padding: 1px 5px; border-radius: 6px; }
     .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
@@ -298,6 +307,11 @@
     }
 
     .row { display: flex; gap: 8px; align-items: flex-end; }
+    .mic-active {
+      background: #fee2e2 !important;
+      border-color: #fecaca !important;
+      color: #991b1b !important;
+    }
 
     textarea {
       flex: 1;
@@ -369,6 +383,7 @@
             <label class="btn" for="fileInput">Attach</label>
             <input id="fileInput" class="upload" type="file" accept="image/*" multiple />
             <textarea id="prompt" placeholder="Tulis pesan... (Enter untuk kirim, Shift+Enter baris baru)"></textarea>
+            <button class="btn" id="micBtn" title="Voice input">🎙️</button>
             <button class="btn primary" id="sendBtn">Send</button>
           </div>
           <div class="muted">Siap deploy Vercel. Cukup isi <code>GEMINI_API_KEY</code>.</div>
@@ -393,11 +408,15 @@
       fileInput: document.getElementById('fileInput'),
       preview: document.getElementById('preview'),
       prompt: document.getElementById('prompt'),
+      micBtn: document.getElementById('micBtn'),
       sendBtn: document.getElementById('sendBtn'),
       modelSelect: document.getElementById('modelSelect'),
       imageGenToggle: document.getElementById('imageGenToggle'),
       imageEditToggle: document.getElementById('imageEditToggle')
     };
+    let recognition = null;
+    let isRecording = false;
+    let speakingId = null;
 
     const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -439,33 +458,54 @@
           const lines = section.split('\n');
           let html = '';
           let inList = false;
+          let inOrderedList = false;
           for (let line of lines) {
             const raw = escapeHtml(line);
             if (/^\s*---+\s*$/.test(line)) {
               if (inList) { html += '</ul>'; inList = false; }
+              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
               html += '<hr/>';
               continue;
             }
             const hMatch = raw.match(/^(#{1,6})\s+(.*)$/);
             if (hMatch) {
               if (inList) { html += '</ul>'; inList = false; }
+              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
               const level = hMatch[1].length;
               html += `<h${level}>${hMatch[2]}</h${level}>`;
               continue;
             }
+            const quote = raw.match(/^\s*>\s+(.*)$/);
+            if (quote) {
+              if (inList) { html += '</ul>'; inList = false; }
+              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
+              html += `<blockquote>${quote[1]}</blockquote>`;
+              continue;
+            }
             const li = raw.match(/^\s*[-*]\s+(.*)$/);
             if (li) {
+              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
               if (!inList) { html += '<ul>'; inList = true; }
               html += `<li>${li[1]}</li>`;
               continue;
             }
+            const oli = raw.match(/^\s*\d+\.\s+(.*)$/);
+            if (oli) {
+              if (inList) { html += '</ul>'; inList = false; }
+              if (!inOrderedList) { html += '<ol>'; inOrderedList = true; }
+              html += `<li>${oli[1]}</li>`;
+              continue;
+            }
             if (inList) { html += '</ul>'; inList = false; }
+            if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
             const withBold = raw
               .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+              .replace(/\*(.+?)\*/g, '<em>$1</em>')
               .replace(/`([^`]+)`/g, '<code>$1</code>');
             html += withBold ? `<p>${withBold}</p>` : '<br/>';
           }
           if (inList) html += '</ul>';
+          if (inOrderedList) html += '</ol>';
           return `<div>${html}</div>`;
         }
         const lines = section.split('\n');
@@ -527,7 +567,7 @@
         }
 
         const imgs = (msg.images || []).map(src => `<img src="${src}" alt="generated"/>`).join('');
-        return `<div class="msg"><div class="bubble">${renderMarkdownLite(msg.text || '')}${imgs}<div class="msg-actions"><button data-copy="${msg.createdAt}">Copy</button><button data-regen="${msg.createdAt}">Regenerate</button></div></div></div>`;
+        return `<div class="msg"><div class="bubble">${renderMarkdownLite(msg.text || '')}${imgs}<div class="msg-actions"><button data-copy="${msg.createdAt}">Copy</button><button data-regen="${msg.createdAt}">Regenerate</button><button data-speak="${msg.createdAt}">Speak</button></div></div></div>`;
       }).join('');
 
       el.chat.parentElement.scrollTop = el.chat.parentElement.scrollHeight;
@@ -547,6 +587,30 @@
           if (!lastUser) return;
           el.prompt.value = lastUser.text || '';
           sendMessage();
+        });
+      });
+      el.chat.querySelectorAll('[data-speak]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const current = getCurrentChat();
+          if (!current) return;
+          const target = current.messages.find((m) => String(m.createdAt) === btn.dataset.speak);
+          if (!target?.text) return;
+          if (speakingId === btn.dataset.speak) {
+            speechSynthesis.cancel();
+            speakingId = null;
+            btn.textContent = 'Speak';
+            return;
+          }
+          speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(target.text);
+          utter.lang = 'id-ID';
+          speakingId = btn.dataset.speak;
+          btn.textContent = 'Stop';
+          utter.onend = () => {
+            speakingId = null;
+            btn.textContent = 'Speak';
+          };
+          speechSynthesis.speak(utter);
         });
       });
     }
@@ -658,6 +722,39 @@
       if (el.imageEditToggle.checked) el.imageGenToggle.checked = false;
     });
     el.sendBtn.addEventListener('click', sendMessage);
+    el.micBtn.addEventListener('click', () => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        alert('Browser ini belum support voice recognition.');
+        return;
+      }
+      if (!recognition) {
+        recognition = new SR();
+        recognition.lang = 'id-ID';
+        recognition.interimResults = true;
+        recognition.continuous = false;
+        recognition.onresult = (event) => {
+          let transcript = '';
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          el.prompt.value = transcript.trim();
+        };
+        recognition.onend = () => {
+          isRecording = false;
+          el.micBtn.classList.remove('mic-active');
+          el.micBtn.textContent = '🎙️';
+        };
+      }
+      if (isRecording) {
+        recognition.stop();
+        return;
+      }
+      isRecording = true;
+      el.micBtn.classList.add('mic-active');
+      el.micBtn.textContent = '⏺';
+      recognition.start();
+    });
     el.prompt.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
