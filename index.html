@@ -3,392 +3,372 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tengpt • Gemini Flash 2.5</title>
+  <title>rhmt Labs • Chat Workspace</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #f7f7f8;
+      --bg: #f5f7fa;
       --surface: #ffffff;
-      --surface-2: #f0f2f4;
-      --text: #101418;
-      --subtext: #5f6368;
-      --border: #e6e7e9;
-      --accent: #2563eb;
-      --accent-2: #1d4ed8;
-      --danger: #dc2626;
-      --shadow: 0 8px 24px rgba(16, 20, 24, 0.08);
+      --surface-soft: #f8fafc;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --brand: #0f172a;
+      --brand-soft: #1e293b;
+      --primary: #2563eb;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 14px;
     }
 
     * { box-sizing: border-box; }
-    html, body {
+
+    html,
+    body {
       margin: 0;
       height: 100%;
       font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg);
       color: var(--text);
+      background: var(--bg);
     }
 
-    .layout {
+    .app {
       display: grid;
-      grid-template-columns: 280px 1fr;
-      height: 100vh;
-      overflow: hidden;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
     }
 
     .sidebar {
-      border-right: 1px solid var(--border);
       background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      min-width: 0;
-      transition: transform .2s ease;
+      gap: 14px;
     }
-    .sidebar.mobile-open { transform: translateX(0); }
 
-    .sidebar-head {
+    .brand {
       padding: 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      gap: 10px;
+      border-radius: var(--radius);
+      background: linear-gradient(140deg, var(--brand), var(--brand-soft));
+      color: white;
     }
 
+    .brand h1 {
+      font-size: 18px;
+      margin: 0;
+      letter-spacing: 0.2px;
+    }
+
+    .brand p {
+      margin: 6px 0 0;
+      opacity: 0.8;
+      font-size: 12px;
+    }
+
+    .menu {
+      display: grid;
+      gap: 8px;
+    }
+
+    .menu button,
     .btn {
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--text);
       border-radius: 10px;
-      height: 38px;
+      min-height: 38px;
       padding: 0 12px;
-      cursor: pointer;
       font-weight: 600;
-    }
-
-    .btn.primary { background: var(--accent); color: white; border-color: transparent; }
-    .btn.primary:hover { background: var(--accent-2); }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    .chat-list {
-      padding: 10px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .chat-item {
-      border: 1px solid transparent;
-      border-radius: 12px;
-      padding: 10px 12px;
-      background: transparent;
-      text-align: left;
       cursor: pointer;
-      color: var(--text);
+      transition: 0.15s ease;
     }
 
-    .chat-item.active,
-    .chat-item:hover {
-      background: var(--surface-2);
-      border-color: var(--border);
+    .menu button.active {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+      color: #1d4ed8;
     }
 
-    .chat-title {
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .btn.primary {
+      background: var(--primary);
+      color: white;
+      border-color: transparent;
     }
-
-    .chat-meta { font-size: 12px; color: var(--subtext); margin-top: 4px; }
 
     .main {
+      padding: 20px;
       min-width: 0;
       display: flex;
       flex-direction: column;
-      height: 100vh;
-    }
-
-    .topbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border);
-      padding: 12px 18px;
-      background: var(--surface);
       gap: 12px;
     }
 
-    .brand { font-size: 15px; font-weight: 700; }
-    .controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .mobile-menu { display: none; }
-
-    select, .toggle {
-      border: 1px solid var(--border);
+    .panel {
       background: var(--surface);
-      border-radius: 10px;
-      height: 36px;
-      padding: 0 10px;
-      font-size: 13px;
-    }
-
-    .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-
-    .chat-wrap {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 24px;
-      display: flex;
-      justify-content: center;
-    }
-
-    .chat {
-      width: 100%;
-      max-width: 860px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    .msg {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .msg.user { justify-content: flex-end; }
-
-    .bubble {
-      max-width: min(760px, 88%);
-      border-radius: 16px;
-      padding: 14px 16px;
-      line-height: 1.55;
-      font-size: 15px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
       border: 1px solid var(--border);
-      background: var(--surface);
+      border-radius: var(--radius);
       box-shadow: var(--shadow);
+      min-height: 0;
     }
 
-    .msg.user .bubble {
-      background: #1f2937;
-      color: #fff;
-      border-color: #1f2937;
-      box-shadow: none;
-    }
-
-    .bubble img {
-      max-width: 100%;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      margin-top: 10px;
-    }
-    .msg-actions {
+    .header {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--border);
       display: flex;
-      gap: 8px;
-      margin-top: 8px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
     }
-    .msg-actions button {
+
+    .header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .header p {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .history-content {
+      padding: 12px;
+      display: grid;
+      gap: 8px;
+      max-height: calc(100vh - 220px);
+      overflow: auto;
+    }
+
+    .history-item {
       border: 1px solid var(--border);
-      background: var(--surface);
-      border-radius: 8px;
-      height: 30px;
-      padding: 0 10px;
-      font-size: 12px;
+      border-radius: 12px;
+      padding: 12px;
+      background: var(--surface-soft);
       cursor: pointer;
     }
 
-    .code {
-      margin-top: 12px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      overflow: hidden;
-    }
-
-    .code-head {
-      background: #111827;
-      color: #cbd5e1;
-      font-size: 12px;
-      padding: 7px 10px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-
-    .code pre {
+    .history-item h3 {
       margin: 0;
-      padding: 12px;
-      background: #0b1020;
-      color: #e2e8f0;
-      overflow-x: auto;
-      font-size: 13px;
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    }
-    .bubble p { margin: 0 0 10px; }
-    .bubble h1, .bubble h2, .bubble h3, .bubble h4 { margin: 0 0 10px; line-height: 1.25; }
-    .bubble ul { margin: 0 0 10px 18px; padding: 0; }
-    .bubble ol { margin: 0 0 10px 18px; padding: 0; }
-    .bubble li { margin: 0 0 4px; }
-    .bubble blockquote {
-      margin: 0 0 10px;
-      padding: 8px 12px;
-      border-left: 3px solid var(--border);
-      color: var(--subtext);
-      background: var(--surface-2);
-      border-radius: 8px;
-    }
-    .bubble code { background: rgba(148,163,184,.2); padding: 1px 5px; border-radius: 6px; }
-    .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
-
-    .typing {
-      display: inline-flex;
-      gap: 6px;
-      align-items: center;
-      padding: 10px 12px;
+      font-size: 14px;
     }
 
-    .typing span {
-      width: 7px; height: 7px; border-radius: 999px; background: #8b949e;
-      animation: blink 1.2s infinite ease-in-out;
+    .history-item p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
     }
 
-    .typing span:nth-child(2) { animation-delay: 0.2s; }
-    .typing span:nth-child(3) { animation-delay: 0.4s; }
+    .chat-view {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100vh - 40px);
+    }
 
-    @keyframes blink {
-      0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
-      40% { transform: scale(1); opacity: 1; }
+    .chat-body {
+      flex: 1;
+      overflow: auto;
+      padding: 16px;
+      display: grid;
+      gap: 12px;
+      background: var(--surface-soft);
+      border-radius: 0 0 var(--radius) var(--radius);
+    }
+
+    .message {
+      max-width: min(780px, 92%);
+      border-radius: 14px;
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      background: var(--surface);
+      justify-self: start;
+    }
+
+    .message.user {
+      justify-self: end;
+      background: #1e293b;
+      border-color: #1e293b;
+      color: #f8fafc;
+    }
+
+    .message img {
+      display: block;
+      max-width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
     }
 
     .composer {
       border-top: 1px solid var(--border);
+      padding: 12px;
+      display: grid;
+      gap: 10px;
       background: var(--surface);
-      padding: 14px;
-      display: flex;
-      justify-content: center;
+      border-radius: 0 0 var(--radius) var(--radius);
     }
 
-    .composer-inner {
-      width: 100%;
-      max-width: 860px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 10px;
-      box-shadow: var(--shadow);
-    }
-
-    .preview {
+    .preview-grid {
       display: flex;
-      gap: 8px;
       flex-wrap: wrap;
-      margin-bottom: 8px;
+      gap: 8px;
     }
 
     .thumb {
-      position: relative;
-      width: 72px;
-      height: 72px;
+      width: 64px;
+      height: 64px;
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid var(--border);
-      background: var(--surface-2);
+      position: relative;
+      background: #e2e8f0;
     }
 
-    .thumb img { width: 100%; height: 100%; object-fit: cover; }
+    .thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
 
     .thumb button {
       position: absolute;
-      top: 3px; right: 3px;
-      border: none; border-radius: 999px;
-      background: rgba(0,0,0,0.7); color: white;
-      width: 18px; height: 18px; font-size: 12px; cursor: pointer;
+      top: 4px;
+      right: 4px;
+      border: none;
+      background: rgba(15, 23, 42, 0.85);
+      color: white;
+      border-radius: 999px;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
     }
 
-    .row { display: flex; gap: 8px; align-items: flex-end; }
-    .mic-active {
-      background: #fee2e2 !important;
-      border-color: #fecaca !important;
-      color: #991b1b !important;
+    .row {
+      display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    textarea,
+    select {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font: inherit;
+      color: var(--text);
     }
 
     textarea {
       flex: 1;
-      min-height: 48px;
-      max-height: 180px;
       resize: none;
-      border: none;
-      outline: none;
-      font: inherit;
-      padding: 8px;
-      background: transparent;
+      min-height: 46px;
+      max-height: 160px;
+      padding: 10px 12px;
       line-height: 1.4;
     }
 
-    .upload { display: none; }
+    select {
+      height: 38px;
+      padding: 0 10px;
+      background: var(--surface);
+    }
 
-    .muted { font-size: 12px; color: var(--subtext); margin-top: 8px; }
+    .upload {
+      display: none;
+    }
+
+    .empty {
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      color: var(--muted);
+      font-size: 14px;
+      text-align: center;
+      background: white;
+    }
+
+    .hidden {
+      display: none !important;
+    }
 
     @media (max-width: 900px) {
-      .layout { grid-template-columns: 1fr; }
-      .sidebar {
-        display: flex;
-        position: fixed;
-        inset: 0 auto 0 0;
-        width: min(82vw, 320px);
-        z-index: 60;
-        transform: translateX(-110%);
-        box-shadow: var(--shadow);
+      .app {
+        grid-template-columns: 1fr;
       }
-      .mobile-menu { display: inline-flex; }
-      .chat-wrap { padding: 14px; }
-      .composer { padding: 10px; }
-      .bubble { max-width: 96%; }
+
+      .sidebar {
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .main {
+        padding: 14px;
+      }
+
+      .chat-view {
+        min-height: auto;
+      }
+
+      .chat-body {
+        max-height: 55vh;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="layout">
+  <div class="app">
     <aside class="sidebar">
-      <div class="sidebar-head">
-        <button class="btn primary" id="newChatBtn">+ New chat</button>
+      <div class="brand">
+        <h1>rhmt Labs</h1>
+        <p>Simple AI Workspace</p>
       </div>
-      <div class="chat-list" id="chatList"></div>
+
+      <div class="menu">
+        <button id="chatTab" class="active">Halaman Chat</button>
+        <button id="historyTab">Halaman Histori</button>
+        <button id="newChatBtn" class="btn primary">+ Chat Baru</button>
+      </div>
     </aside>
 
     <main class="main">
-      <div class="topbar">
-        <div class="brand">Tengpt • Gemini UI (ChatGPT style)</div>
-        <div class="controls">
-          <button class="btn mobile-menu" id="mobileMenuBtn">☰</button>
+      <section id="chatPage" class="panel chat-view">
+        <div class="header">
+          <div>
+            <h2>Chat</h2>
+            <p>Kirim pertanyaan dan upload foto dengan tampilan sederhana.</p>
+          </div>
           <select id="modelSelect">
             <option value="gemini-2.5-flash">gemini-2.5-flash</option>
             <option value="gemini-2.5-pro">gemini-2.5-pro</option>
             <option value="gemini-2.0-flash">gemini-2.0-flash</option>
           </select>
-          <label class="toggle"><input type="checkbox" id="imageGenToggle" /> Image Gen</label>
-          <label class="toggle"><input type="checkbox" id="imageEditToggle" /> Image Edit</label>
         </div>
-      </div>
 
-      <div class="chat-wrap">
-        <div class="chat" id="chat"></div>
-      </div>
+        <div class="chat-body" id="chatBody"></div>
 
-      <div class="composer">
-        <div class="composer-inner">
-          <div class="preview" id="preview"></div>
+        <div class="composer">
+          <div class="preview-grid" id="preview"></div>
           <div class="row">
-            <label class="btn" for="fileInput">Attach</label>
+            <label class="btn" for="fileInput">Upload Foto</label>
             <input id="fileInput" class="upload" type="file" accept="image/*" multiple />
-            <textarea id="prompt" placeholder="Tulis pesan... (Enter untuk kirim, Shift+Enter baris baru)"></textarea>
-            <button class="btn" id="micBtn" title="Voice input">🎙️</button>
-            <button class="btn primary" id="sendBtn">Send</button>
+            <textarea id="prompt" placeholder="Tulis pesan... (Enter kirim, Shift+Enter baris baru)"></textarea>
+            <button id="sendBtn" class="btn primary">Kirim</button>
           </div>
-          <div class="muted">Siap deploy Vercel. Cukup isi <code>GEMINI_API_KEY</code>.</div>
         </div>
-      </div>
+      </section>
+
+      <section id="historyPage" class="panel hidden">
+        <div class="header">
+          <div>
+            <h2>Histori Chat</h2>
+            <p>Pilih percakapan untuk dilanjutkan dari daftar histori.</p>
+          </div>
+        </div>
+        <div class="history-content" id="historyList"></div>
+      </section>
     </main>
   </div>
 
@@ -398,227 +378,149 @@
       currentChatId: null,
       pendingImages: [],
       sending: false,
+      page: 'chat'
     };
 
     const el = {
-      chat: document.getElementById('chat'),
-      chatList: document.getElementById('chatList'),
-      mobileMenuBtn: document.getElementById('mobileMenuBtn'),
+      chatTab: document.getElementById('chatTab'),
+      historyTab: document.getElementById('historyTab'),
+      chatPage: document.getElementById('chatPage'),
+      historyPage: document.getElementById('historyPage'),
       newChatBtn: document.getElementById('newChatBtn'),
+      chatBody: document.getElementById('chatBody'),
+      historyList: document.getElementById('historyList'),
+      modelSelect: document.getElementById('modelSelect'),
       fileInput: document.getElementById('fileInput'),
       preview: document.getElementById('preview'),
       prompt: document.getElementById('prompt'),
-      micBtn: document.getElementById('micBtn'),
-      sendBtn: document.getElementById('sendBtn'),
-      modelSelect: document.getElementById('modelSelect'),
-      imageGenToggle: document.getElementById('imageGenToggle'),
-      imageEditToggle: document.getElementById('imageEditToggle')
+      sendBtn: document.getElementById('sendBtn')
     };
-    let recognition = null;
-    let isRecording = false;
-    let speakingId = null;
 
     const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     function save() {
-      localStorage.setItem('tengpt_state_v2', JSON.stringify({ chats: state.chats, currentChatId: state.currentChatId }));
+      localStorage.setItem('rhmt_labs_state_v1', JSON.stringify({
+        chats: state.chats,
+        currentChatId: state.currentChatId,
+      }));
     }
 
     function load() {
-      const raw = localStorage.getItem('tengpt_state_v2');
+      const raw = localStorage.getItem('rhmt_labs_state_v1');
       if (!raw) return;
+
       try {
         const parsed = JSON.parse(raw);
         state.chats = Array.isArray(parsed.chats) ? parsed.chats : [];
         state.currentChatId = parsed.currentChatId || null;
-      } catch {}
+      } catch (error) {
+        console.warn('Gagal membaca state lokal:', error);
+      }
+    }
+
+    function getCurrentChat() {
+      return state.chats.find(chat => chat.id === state.currentChatId) || null;
     }
 
     function newChat() {
-      const chat = { id: uid(), title: 'New Chat', updatedAt: Date.now(), messages: [] };
+      const chat = {
+        id: uid(),
+        title: 'Chat Baru',
+        updatedAt: Date.now(),
+        messages: []
+      };
+
       state.chats.unshift(chat);
       state.currentChatId = chat.id;
-      document.querySelector('.sidebar').classList.remove('mobile-open');
       save();
       render();
     }
 
-    function getCurrentChat() {
-      return state.chats.find(c => c.id === state.currentChatId) || null;
+    function escapeHtml(text = '') {
+      return text.replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[char]));
     }
 
-    function escapeHtml(str = '') {
-      return str.replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    function setPage(page) {
+      state.page = page;
+      el.chatPage.classList.toggle('hidden', page !== 'chat');
+      el.historyPage.classList.toggle('hidden', page !== 'history');
+      el.chatTab.classList.toggle('active', page === 'chat');
+      el.historyTab.classList.toggle('active', page === 'history');
     }
 
-    function renderMarkdownLite(text = '') {
-      const sections = text.split('```');
-      return sections.map((section, i) => {
-        if (i % 2 === 0) {
-          const lines = section.split('\n');
-          let html = '';
-          let inList = false;
-          let inOrderedList = false;
-          for (let line of lines) {
-            const raw = escapeHtml(line);
-            if (/^\s*---+\s*$/.test(line)) {
-              if (inList) { html += '</ul>'; inList = false; }
-              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
-              html += '<hr/>';
-              continue;
-            }
-            const hMatch = raw.match(/^(#{1,6})\s+(.*)$/);
-            if (hMatch) {
-              if (inList) { html += '</ul>'; inList = false; }
-              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
-              const level = hMatch[1].length;
-              html += `<h${level}>${hMatch[2]}</h${level}>`;
-              continue;
-            }
-            const quote = raw.match(/^\s*>\s+(.*)$/);
-            if (quote) {
-              if (inList) { html += '</ul>'; inList = false; }
-              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
-              html += `<blockquote>${quote[1]}</blockquote>`;
-              continue;
-            }
-            const li = raw.match(/^\s*[-*]\s+(.*)$/);
-            if (li) {
-              if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
-              if (!inList) { html += '<ul>'; inList = true; }
-              html += `<li>${li[1]}</li>`;
-              continue;
-            }
-            const oli = raw.match(/^\s*\d+\.\s+(.*)$/);
-            if (oli) {
-              if (inList) { html += '</ul>'; inList = false; }
-              if (!inOrderedList) { html += '<ol>'; inOrderedList = true; }
-              html += `<li>${oli[1]}</li>`;
-              continue;
-            }
-            if (inList) { html += '</ul>'; inList = false; }
-            if (inOrderedList) { html += '</ol>'; inOrderedList = false; }
-            const withBold = raw
-              .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-              .replace(/\*(.+?)\*/g, '<em>$1</em>')
-              .replace(/`([^`]+)`/g, '<code>$1</code>');
-            html += withBold ? `<p>${withBold}</p>` : '<br/>';
-          }
-          if (inList) html += '</ul>';
-          if (inOrderedList) html += '</ol>';
-          return `<div>${html}</div>`;
-        }
-        const lines = section.split('\n');
-        const lang = escapeHtml(lines.shift() || 'code');
-        const code = escapeHtml(lines.join('\n'));
-        return `<div class="code"><div class="code-head">${lang}</div><pre>${code}</pre></div>`;
-      }).join('');
-    }
+    function renderPreview() {
+      if (!state.pendingImages.length) {
+        el.preview.innerHTML = '';
+        return;
+      }
 
-    function renderChatList() {
-      el.chatList.innerHTML = state.chats.map(c => `
-        <button class="chat-item ${c.id === state.currentChatId ? 'active' : ''}" data-chat-id="${c.id}">
-          <div class="chat-title">${escapeHtml(c.title || 'Untitled')}</div>
-          <div class="chat-meta">${new Date(c.updatedAt).toLocaleString('id-ID')}</div>
-        </button>
+      el.preview.innerHTML = state.pendingImages.map((image, index) => `
+        <div class="thumb">
+          <img src="${image.base64}" alt="preview-${index}" />
+          <button data-remove="${index}">×</button>
+        </div>
       `).join('');
 
-      el.chatList.querySelectorAll('.chat-item').forEach(btn => {
-        btn.addEventListener('click', () => {
-          state.currentChatId = btn.dataset.chatId;
-          document.querySelector('.sidebar').classList.remove('mobile-open');
+      el.preview.querySelectorAll('[data-remove]').forEach(button => {
+        button.addEventListener('click', () => {
+          state.pendingImages.splice(Number(button.dataset.remove), 1);
+          renderPreview();
+        });
+      });
+    }
+
+    function renderHistory() {
+      if (!state.chats.length) {
+        el.historyList.innerHTML = '<div class="empty">Belum ada histori chat.</div>';
+        return;
+      }
+
+      el.historyList.innerHTML = state.chats.map(chat => {
+        const totalMessages = chat.messages.length;
+        const date = new Date(chat.updatedAt).toLocaleString('id-ID');
+        return `
+          <article class="history-item" data-chat-id="${chat.id}">
+            <h3>${escapeHtml(chat.title || 'Tanpa Judul')}</h3>
+            <p>${totalMessages} pesan • terakhir diperbarui ${date}</p>
+          </article>
+        `;
+      }).join('');
+
+      el.historyList.querySelectorAll('[data-chat-id]').forEach(item => {
+        item.addEventListener('click', () => {
+          state.currentChatId = item.dataset.chatId;
+          setPage('chat');
           save();
           render();
         });
       });
     }
 
-    function renderPreview() {
-      el.preview.innerHTML = state.pendingImages.map((img, idx) => `
-        <div class="thumb">
-          <img src="${img.base64}" alt="img-${idx}" />
-          <button data-rm="${idx}">×</button>
-        </div>
-      `).join('');
-
-      el.preview.querySelectorAll('button[data-rm]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          state.pendingImages.splice(Number(btn.dataset.rm), 1);
-          renderPreview();
-        });
-      });
-    }
-
     function renderMessages() {
-      const current = getCurrentChat();
-      if (!current || !current.messages.length) {
-        el.chat.innerHTML = `<div class="msg"><div class="bubble">Halo! Saya siap jadi asisten Gemini yang tampilannya mirip ChatGPT. Kirim pesan, upload gambar, atau aktifkan mode Image Gen/Image Edit.</div></div>`;
+      const chat = getCurrentChat();
+      if (!chat || !chat.messages.length) {
+        el.chatBody.innerHTML = '<div class="empty">Mulai percakapan baru di rhmt Labs. Kamu bisa kirim teks dan upload foto.</div>';
         return;
       }
 
-      el.chat.innerHTML = current.messages.map(msg => {
-        if (msg.role === 'user') {
-          const imgs = (msg.images || []).map(src => `<img src="${src}" alt="upload"/>`).join('');
-          return `<div class="msg user"><div class="bubble">${escapeHtml(msg.text || '')}${imgs}</div></div>`;
-        }
-
-        if (msg.typing) {
-          return `<div class="msg"><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
-        }
-
-        const imgs = (msg.images || []).map(src => `<img src="${src}" alt="generated"/>`).join('');
-        return `<div class="msg"><div class="bubble">${renderMarkdownLite(msg.text || '')}${imgs}<div class="msg-actions"><button data-copy="${msg.createdAt}">Copy</button><button data-regen="${msg.createdAt}">Regenerate</button><button data-speak="${msg.createdAt}">Speak</button></div></div></div>`;
+      el.chatBody.innerHTML = chat.messages.map(message => {
+        const images = (message.images || []).map(src => `<img src="${src}" alt="message-image" />`).join('');
+        return `<div class="message ${message.role === 'user' ? 'user' : ''}">${escapeHtml(message.text || '')}${images}</div>`;
       }).join('');
 
-      el.chat.parentElement.scrollTop = el.chat.parentElement.scrollHeight;
-      el.chat.querySelectorAll('[data-copy]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const t = btn.closest('.bubble')?.innerText?.replace('CopyRegenerate', '') || '';
-          await navigator.clipboard.writeText(t.trim());
-          btn.textContent = 'Copied';
-          setTimeout(() => (btn.textContent = 'Copy'), 1100);
-        });
-      });
-      el.chat.querySelectorAll('[data-regen]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const current = getCurrentChat();
-          if (!current) return;
-          const lastUser = [...current.messages].reverse().find((m) => m.role === 'user');
-          if (!lastUser) return;
-          el.prompt.value = lastUser.text || '';
-          sendMessage();
-        });
-      });
-      el.chat.querySelectorAll('[data-speak]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const current = getCurrentChat();
-          if (!current) return;
-          const target = current.messages.find((m) => String(m.createdAt) === btn.dataset.speak);
-          if (!target?.text) return;
-          if (speakingId === btn.dataset.speak) {
-            speechSynthesis.cancel();
-            speakingId = null;
-            btn.textContent = 'Speak';
-            return;
-          }
-          speechSynthesis.cancel();
-          const utter = new SpeechSynthesisUtterance(target.text);
-          utter.lang = 'id-ID';
-          speakingId = btn.dataset.speak;
-          btn.textContent = 'Stop';
-          utter.onend = () => {
-            speakingId = null;
-            btn.textContent = 'Speak';
-          };
-          speechSynthesis.speak(utter);
-        });
-      });
+      el.chatBody.scrollTop = el.chatBody.scrollHeight;
     }
 
     function render() {
-      renderChatList();
       renderPreview();
       renderMessages();
+      renderHistory();
     }
 
     async function fileToBase64(file) {
@@ -632,149 +534,108 @@
 
     async function sendMessage() {
       if (state.sending) return;
+
       const text = el.prompt.value.trim();
       const hasImages = state.pendingImages.length > 0;
       if (!text && !hasImages) return;
-      const current = getCurrentChat();
-      if (!current) return;
-      if (el.imageEditToggle.checked && !hasImages) {
-        current.messages.push({
-          role: 'assistant',
-          text: 'Untuk mode Image Edit, upload dulu minimal 1 gambar.',
-          createdAt: Date.now()
-        });
-        render();
-        return;
-      }
 
-      const userMsg = {
+      const chat = getCurrentChat();
+      if (!chat) return;
+
+      const userMessage = {
         role: 'user',
         text,
-        images: state.pendingImages.map(i => i.base64),
+        images: state.pendingImages.map(image => image.base64),
         createdAt: Date.now()
       };
 
-      current.messages.push(userMsg);
-      current.updatedAt = Date.now();
-      if (current.messages.length === 1) {
-        current.title = text.slice(0, 40) || 'Image prompt';
+      chat.messages.push(userMessage);
+      if (chat.messages.length === 1) {
+        chat.title = text.slice(0, 38) || 'Upload Foto';
       }
+      chat.updatedAt = Date.now();
 
-      const typingId = uid();
-      current.messages.push({ role: 'assistant', text: '', typing: true, id: typingId, createdAt: Date.now() });
-
-      state.sending = true;
-      el.sendBtn.disabled = true;
-      const payloadImages = [...state.pendingImages];
+      const queuedImages = [...state.pendingImages];
       state.pendingImages = [];
       el.prompt.value = '';
+      state.sending = true;
+      el.sendBtn.disabled = true;
       render();
 
       try {
-        const res = await fetch('/api/chat', {
+        const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             prompt: text,
-            images: payloadImages.map(i => i.base64),
-            mode: el.imageGenToggle.checked ? 'image_generate' : (el.imageEditToggle.checked ? 'image_edit' : 'chat'),
+            images: queuedImages.map(image => image.base64),
             model: el.modelSelect.value,
-            history: current.messages
-              .filter(m => !m.typing)
-              .map(m => ({ role: m.role, text: m.text, images: m.images || [] }))
+            mode: 'chat',
+            history: chat.messages.map(message => ({
+              role: message.role,
+              text: message.text,
+              images: message.images || []
+            }))
           })
         });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.reply || data.error || 'Request failed');
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || data.reply || 'Permintaan gagal.');
+        }
 
-        const idx = current.messages.findIndex(m => m.id === typingId);
-        const assistant = {
+        chat.messages.push({
           role: 'assistant',
-          text: data.reply || '',
+          text: data.reply || 'Tidak ada balasan dari model.',
           images: data.images || [],
           createdAt: Date.now()
-        };
-
-        if (idx >= 0) current.messages.splice(idx, 1, assistant);
-        else current.messages.push(assistant);
-      } catch (err) {
-        const idx = current.messages.findIndex(m => m.id === typingId);
-        const failed = { role: 'assistant', text: `❌ ${err.message}`, createdAt: Date.now() };
-        if (idx >= 0) current.messages.splice(idx, 1, failed);
+        });
+      } catch (error) {
+        chat.messages.push({
+          role: 'assistant',
+          text: `❌ ${error.message}`,
+          images: [],
+          createdAt: Date.now()
+        });
       } finally {
         state.sending = false;
         el.sendBtn.disabled = false;
-        current.updatedAt = Date.now();
+        chat.updatedAt = Date.now();
         save();
         render();
       }
     }
 
-    el.newChatBtn.addEventListener('click', newChat);
-    el.mobileMenuBtn.addEventListener('click', () => {
-      document.querySelector('.sidebar').classList.toggle('mobile-open');
+    el.chatTab.addEventListener('click', () => setPage('chat'));
+    el.historyTab.addEventListener('click', () => setPage('history'));
+    el.newChatBtn.addEventListener('click', () => {
+      newChat();
+      setPage('chat');
     });
-    el.imageGenToggle.addEventListener('change', () => {
-      if (el.imageGenToggle.checked) el.imageEditToggle.checked = false;
-    });
-    el.imageEditToggle.addEventListener('change', () => {
-      if (el.imageEditToggle.checked) el.imageGenToggle.checked = false;
-    });
-    el.sendBtn.addEventListener('click', sendMessage);
-    el.micBtn.addEventListener('click', () => {
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) {
-        alert('Browser ini belum support voice recognition.');
-        return;
+
+    el.fileInput.addEventListener('change', async event => {
+      const files = Array.from(event.target.files || []);
+      for (const file of files) {
+        const base64 = await fileToBase64(file);
+        state.pendingImages.push({ name: file.name, base64 });
       }
-      if (!recognition) {
-        recognition = new SR();
-        recognition.lang = 'id-ID';
-        recognition.interimResults = true;
-        recognition.continuous = false;
-        recognition.onresult = (event) => {
-          let transcript = '';
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          el.prompt.value = transcript.trim();
-        };
-        recognition.onend = () => {
-          isRecording = false;
-          el.micBtn.classList.remove('mic-active');
-          el.micBtn.textContent = '🎙️';
-        };
-      }
-      if (isRecording) {
-        recognition.stop();
-        return;
-      }
-      isRecording = true;
-      el.micBtn.classList.add('mic-active');
-      el.micBtn.textContent = '⏺';
-      recognition.start();
+      event.target.value = '';
+      renderPreview();
     });
-    el.prompt.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
+
+    el.prompt.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
         sendMessage();
       }
     });
 
-    el.fileInput.addEventListener('change', async (e) => {
-      const files = Array.from(e.target.files || []);
-      for (const file of files) {
-        const base64 = await fileToBase64(file);
-        state.pendingImages.push({ base64, name: file.name });
-      }
-      e.target.value = '';
-      renderPreview();
-    });
+    el.sendBtn.addEventListener('click', sendMessage);
 
     load();
     if (!state.chats.length) newChat();
     if (!state.currentChatId && state.chats.length) state.currentChatId = state.chats[0].id;
+    setPage('chat');
     render();
   </script>
 </body>

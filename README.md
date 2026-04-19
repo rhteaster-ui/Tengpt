@@ -1,17 +1,19 @@
-# Tengpt (Gemini ChatGPT-style UI)
+# rhmt Labs (Simple Gemini Chat Workspace)
 
-Aplikasi chat single-page yang tampilannya dibuat mirip alur ChatGPT, tetapi memakai **Gemini API**.
+Aplikasi chat single-page yang sekarang dirombak total jadi lebih sederhana dan terstruktur.
+
+## Halaman Utama
+
+- **Halaman Chat**: tampilan fokus untuk chat teks + upload foto.
+- **Halaman Histori**: daftar semua percakapan untuk dibuka ulang.
 
 ## Fitur
 
-- UI chat yang rapi dan responsif (desktop + mobile).
-- Multi-chat dengan riwayat tersimpan di `localStorage`.
-- Mode normal chat dengan model default **`gemini-2.5-flash`**.
-- Upload gambar untuk vision prompt.
-- Mode **Image Generate** dan **Image Edit** (menggunakan model image generation Gemini jika tersedia di akun).
-- Animasi indikator mengetik.
-- Render code block markdown sederhana.
-- Siap deploy di Vercel.
+- UI/UX minimalis, bersih, dan responsif.
+- Multi-chat dengan histori tersimpan di `localStorage`.
+- Upload beberapa foto sekaligus untuk vision prompt.
+- Integrasi Gemini API melalui endpoint `/api/chat`.
+- Siap deploy ke Vercel.
 
 ## Deploy ke Vercel
 
@@ -19,8 +21,6 @@ Aplikasi chat single-page yang tampilannya dibuat mirip alur ChatGPT, tetapi mem
 2. Tambahkan Environment Variable:
    - `GEMINI_API_KEY=<api_key_anda>`
 3. Deploy.
-
-Selesai. Tidak perlu setup lain.
 
 ## Endpoint
 
@@ -34,4 +34,4 @@ Selesai. Tidak perlu setup lain.
 
 ## Catatan
 
-Model image generation Gemini bisa berbeda per project/region/allowlist. Jika model image tertentu belum aktif di project Anda, mode tersebut akan mengembalikan error dari Gemini API secara langsung.
+Nama produk sekarang menjadi **rhmt Labs**.
