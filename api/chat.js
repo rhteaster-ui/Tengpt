@@ -20,18 +20,34 @@ function buildHistoryParts(history = []) {
 
 async function callGemini({ apiKey, model, body }) {
   const url = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const maxAttempts = 3;
+  const retryDelayMs = [800, 1600];
 
-  const data = await response.json();
-  if (!response.ok) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      return data;
+    }
+
     const msg = data?.error?.message || JSON.stringify(data);
+    const retryable = [429, 500, 503].includes(response.status);
+    const hasNextAttempt = attempt < maxAttempts;
+
+    if (retryable && hasNextAttempt) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs[attempt - 1] || 2000));
+      continue;
+    }
+
     throw new Error(`Gemini API ${response.status}: ${msg}`);
   }
-  return data;
+
+  throw new Error('Gemini API gagal setelah beberapa percobaan.');
 }
 
 function extractOutput(data) {
@@ -67,8 +83,18 @@ export default async function handler(req, res) {
       mode = 'chat',
       model = 'gemini-2.5-flash',
     } = req.body || {};
+    const sanitizedHistory = Array.isArray(history)
+      ? history
+          .filter((m) => m && typeof m === 'object' && (m.text || (Array.isArray(m.images) && m.images.length)))
+          .slice(-16)
+          .map((m) => ({
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            text: String(m.text || '').slice(0, 4000),
+            images: Array.isArray(m.images) ? m.images.slice(0, 2) : [],
+          }))
+      : [];
     const imageParts = images.map((img) => toInlineData(img));
-    const contents = [...buildHistoryParts(history)];
+    const contents = [...buildHistoryParts(sanitizedHistory)];
     const systemInstruction = {
       parts: [{ text: 'Kamu asisten cerdas berbahasa Indonesia. Jawaban harus jelas, natural, dan helpful seperti ChatGPT. Untuk kode, gunakan markdown code block.' }],
     };
