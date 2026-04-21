@@ -1,4 +1,9 @@
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function toInlineData(dataUrl) {
   const [meta, data] = dataUrl.split(',');
@@ -20,18 +25,38 @@ function buildHistoryParts(history = []) {
 
 async function callGemini({ apiKey, model, body }) {
   const url = `${GEMINI_BASE_URL}/models/${model}:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const maxAttempts = 3;
 
-  const data = await response.json();
-  if (!response.ok) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      data = null;
+    }
+
+    if (response.ok) {
+      return data;
+    }
+
+    const status = response.status;
     const msg = data?.error?.message || JSON.stringify(data);
-    throw new Error(`Gemini API ${response.status}: ${msg}`);
+    const err = new Error(`Gemini API ${status}: ${msg}`);
+    err.status = status;
+
+    const shouldRetry = RETRYABLE_STATUS.has(status) && attempt < maxAttempts;
+    if (!shouldRetry) {
+      throw err;
+    }
+
+    await sleep(500 * attempt);
   }
-  return data;
 }
 
 function extractOutput(data) {
@@ -100,6 +125,7 @@ export default async function handler(req, res) {
     return res.status(200).json(output);
   } catch (error) {
     console.error('chat handler error', error);
-    return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    const status = error?.status || 500;
+    return res.status(status).json({ error: error.message || 'Internal Server Error' });
   }
 }
