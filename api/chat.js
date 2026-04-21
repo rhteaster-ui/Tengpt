@@ -67,47 +67,30 @@ export default async function handler(req, res) {
       mode = 'chat',
       model = 'gemini-2.5-flash',
     } = req.body || {};
-    const autoImageIntent = /(buat|generate|bikin).*(gambar|image|foto|ilustrasi)/i.test(prompt || '');
-    const effectiveMode = mode === 'chat' && autoImageIntent ? 'image_generate' : mode;
-
     const imageParts = images.map((img) => toInlineData(img));
     const contents = [...buildHistoryParts(history)];
     const systemInstruction = {
       parts: [{ text: 'Kamu asisten cerdas berbahasa Indonesia. Jawaban harus jelas, natural, dan helpful seperti ChatGPT. Untuk kode, gunakan markdown code block.' }],
     };
 
-    let modelToUse = model;
-    let body = {};
+    const allowedModel = 'gemini-2.5-flash';
+    const safeModel = model === allowedModel ? model : allowedModel;
 
-    if (effectiveMode === 'image_generate') {
-      modelToUse = 'gemini-2.0-flash-preview-image-generation';
-      body = {
-        contents: [{ role: 'user', parts: [{ text: `Generate a high-quality image based on this prompt: ${prompt}` }] }],
-        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-      };
-    } else if (effectiveMode === 'image_edit') {
-      modelToUse = 'gemini-2.0-flash-preview-image-generation';
-      body = {
-        contents: [{ role: 'user', parts: [{ text: `Edit this image with instruction: ${prompt}` }, ...imageParts] }],
-        generationConfig: { responseModalities: ['TEXT', 'IMAGE'] },
-      };
-    } else {
-      contents.push({
-        role: 'user',
-        parts: [{ text: prompt }, ...imageParts],
-      });
+    contents.push({
+      role: 'user',
+      parts: [{ text: prompt }, ...imageParts],
+    });
 
-      body = {
-        contents,
-        systemInstruction,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 4096,
-        },
-      };
-    }
+    const body = {
+      contents,
+      systemInstruction,
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 4096,
+      },
+    };
 
-    const data = await callGemini({ apiKey, model: modelToUse, body });
+    const data = await callGemini({ apiKey, model: safeModel, body });
     const output = extractOutput(data);
 
     if (!output.reply && !output.images.length) {
