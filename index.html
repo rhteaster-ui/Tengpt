@@ -599,6 +599,7 @@
             lastPrompt = "";
             lastImageBase64 = null;
             lastMimeType = null;
+            conversationHistory.length = 0;
             historyAddedThisSession = false; 
 
             showToast("Obrolan berhasil dibersihkan & dimulai ulang.");
@@ -857,6 +858,8 @@
         const sendBtn = document.getElementById('sendBtn');
         const chatMessages = document.getElementById('chatMessages');
         const chatBox = document.getElementById('chatBox');
+        const conversationHistory = [];
+        const MAX_HISTORY_MESSAGES = 16;
 
         function scrollToBottom() {
             setTimeout(() => {
@@ -1105,6 +1108,7 @@
                     body: JSON.stringify({
                         prompt,
                         images,
+                        history: conversationHistory.slice(-MAX_HISTORY_MESSAGES),
                         model: selectedModelId,
                         mode: 'chat'
                     })
@@ -1153,6 +1157,14 @@
             addHistoryItem(text || "Analisis Gambar/Dokumen");
 
             appendUserMessage(text, currentFile);
+            conversationHistory.push({
+                role: 'user',
+                text,
+                images: currentBase64 ? [`data:${currentMime || 'image/jpeg'};base64,${currentBase64}`] : [],
+            });
+            if (conversationHistory.length > MAX_HISTORY_MESSAGES) {
+                conversationHistory.splice(0, conversationHistory.length - MAX_HISTORY_MESSAGES);
+            }
 
             const typingId = appendTypingIndicator();
             sendBtn.disabled = true;
@@ -1162,6 +1174,14 @@
             
             document.getElementById(typingId).remove();
             appendAIMessage(responseText);
+            conversationHistory.push({
+                role: 'assistant',
+                text: responseText,
+                images: [],
+            });
+            if (conversationHistory.length > MAX_HISTORY_MESSAGES) {
+                conversationHistory.splice(0, conversationHistory.length - MAX_HISTORY_MESSAGES);
+            }
             sendBtn.disabled = false;
             isGenerating = false;
         }
